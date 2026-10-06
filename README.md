@@ -1,279 +1,184 @@
-# ZJU Connect
+# NJU-Connect
 
-> 🚫 **免责声明**
->
-> 本程序**按原样提供**，作者**不对程序的正确性或可靠性提供保证**，请使用者自行判断具体场景是否适合使用该程序，**使用该程序造成的问题或后果由使用者自行承担**！
+[下载 Windows 运行包](https://github.com/tukwhy/NJU-Connect/releases/latest) · [查看 Releases](https://github.com/tukwhy/NJU-Connect/releases) · [提交问题](https://github.com/tukwhy/NJU-Connect/issues)
 
----
+基于 [Mythologyli/zju-connect](https://github.com/Mythologyli/zju-connect) 的南京大学 aTrust 适配版。通过独立本机 SOCKS5 / HTTP 代理访问账号获授权的校内 IPv4 TCP 资源，并与现有 Clash 分流配合。
 
-中文 | [English](README_en.md)
+默认不安装官方 aTrust 客户端，不创建系统 TUN，不修改系统代理、DNS 或路由。程序仍通过学校 aTrust 网关传输，登录和资源访问遵循服务端认证与授权。
 
-**本程序基于 [EasierConnect](https://github.com/lyc8503/EasierConnect)（现已停止维护）完成，感谢原作者 [lyc8503](https://github.com/lyc8503)。**
+## 相比上游的修改
 
-**QQ 交流群：1037726410**，欢迎使用者加入交流。
+- 新增南大预设：`vpn.nju.edu.cn:443`，动态发现 LDAP / OAuth 登录域。
+- 修正 aTrust TCP-only 启动：跳过虚拟 IP 申请与用户态 L3 隧道初始化。
+- 默认 SOCKS5 `127.0.0.1:11080`、HTTP `127.0.0.1:11081`，可同时连接多个目标 IP 和 TCP 端口。
+- 南大发布二进制锁定预设，拒绝 TUN、路由修改、DNS 劫持、Fake IP 及非 loopback 监听。
+- 每次登录后将学校下发的 TCP IPv4 地址范围合并为 CIDR，生成 Clash YAML 与 CFW JavaScript Mixin。
+- 提供隐藏密码输入、端口占用检查、可选会话保存与可选 SSH banner 检查。
 
-### 使用方法
+aTrust 协议、LDAP/OAuth、二次认证、代理服务、资源权限检查和端口转发基于上游实现。上游说明见 [README.upstream.md](README.upstream.md) 与 [README_en.md](README_en.md)。
 
-#### 使用 GUI 版客户端
+## 最少需要哪些文件
 
-+ 如果你是来自 ZJU 的用户：
-  + Windows 用户推荐使用 [ZJU Connect for Windows](https://github.com/mythologyli/zju-connect-for-Windows)。
-  + Linux/macOS 用户可以尝试使用 [Chenx Dust](https://github.com/chenx-dust) 开发的客户端 [EZ4Connect](https://github.com/chenx-dust/EZ4Connect)（推荐，支持 aTrust 协议）或 [kowyo](https://github.com/kowyo) 开发的客户端 [hitsz-connect-verge](https://github.com/kowyo/hitsz-connect-verge)。
-    注意请设置服务器地址为 `rvpn.zju.edu.cn:443`。
-+ 如果你是非 ZJU 的用户：
+| 使用方式 | 必需文件 | 说明 |
+|---|---|---|
+| 直接运行 EXE | `nju-connect.exe` | 可独立运行；从当前目录生成规则文件 |
+| 使用启动脚本 | `Start-NJU.ps1`、`nju.toml`、`dist/nju-connect.exe` | 推荐，保留这个目录结构 |
+| 接入现有 CFW | 上述运行文件；把 `CFW-Mixin-NJU.js` 的代码粘贴一次到 CFW | JS 文件不是 EXE 的运行依赖；粘贴后可不保留它 |
 
-  可以尝试使用 [Chenx Dust](https://github.com/chenx-dust) 开发的客户端 [EZ4Connect](https://github.com/chenx-dust/EZ4Connect)（推荐，支持 aTrust 协议）或 [kowyo](https://github.com/kowyo) 开发的客户端 [hitsz-connect-verge](https://github.com/kowyo/hitsz-connect-verge)。
+不需要 Go、Python、Node.js、Docker、aTrust SDK 或额外 `wintun.dll` 来运行发布包。`LICENSE` 和 `NOTICE.md` 随分发包保留。
 
-#### 直接运行
+以下文件由程序生成，初次运行前无需准备，也不要提交到公开仓库：
 
-##### 使用 EasyConnect 协议
+| 文件 | 用途 |
+|---|---|
+| `clash-nju.generated.yaml` | 当前账号的实际学校网段与代理节点 |
+| `clash-nju.generated.cfw-mixin.js` | 内嵌本次网段的 CFW Mixin |
+| `nju-client-data.json` | 仅使用 `-RememberSession` 时保存设备标识和会话 Cookie |
 
-+ 如果你是来自 ZJU 的用户：
+## Windows 快速开始
 
-  1. 在 [Release](https://github.com/mythologyli/zju-connect/releases) 页面下载对应平台的最新版本。
+从本仓库 [Releases](https://github.com/tukwhy/NJU-Connect/releases/latest) 下载 `windows-amd64.zip`。发布包目标为 Windows x64。完整解压后，在解压目录打开普通 PowerShell：
 
-  2. 以 macOS 为例，解压出可执行文件 `zju-connect`。
+```powershell
+.\Start-NJU.ps1
+```
 
-  3. macOS 需要先解除安全限制。命令行运行：`sudo xattr -rd com.apple.quarantine zju-connect`。
+输入学校账号与密码，随后按提示完成短信、邮箱或其他二次认证。密码隐藏输入，经当前进程环境传给子进程，不写入配置或命令行；脚本结束后恢复原变量。
 
-  4. 命令行运行：`./zju-connect -protocol easyconnect -username <上网账户> -password <密码>`。
+保持这个窗口运行。看到 `Exported ... school TCP IPv4 ranges` 后，按下一节加载 Clash 分流。停止程序使用 Ctrl+C，只关闭本程序的连接与监听。
 
-  5. 此时 `1080` 端口为 Socks5 代理，`1081` 端口为 HTTP 代理。如需更改默认端口，请参考参数说明。
+也可以预填学号：
 
-+ 如果你是非 ZJU 的用户：
+```powershell
+.\Start-NJU.ps1 -Username '你的学号'
+```
 
-  其他步骤与上述相同，运行参数请尝试设置为：
+如果 PowerShell 的脚本执行策略阻止运行，可由你手动用一次性子进程执行，不修改系统执行策略：
 
-  `./zju-connect -server <服务器地址> -port <服务器端口> -username xxx -password xxx -disable-zju-config -skip-domain-resource -remote-dns-server auto`
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Start-NJU.ps1
+```
 
-  如果你的服务器需要输入图形验证码，运行参数请尝试设置为：
+## 与现有 Clash / CFW 配合
 
-  `./zju-connect -server <服务器地址> -port <服务器端口> -username xxx -password xxx -disable-zju-config -skip-domain-resource -remote-dns-server auto -disable-multi-line -graph-code-file graph_code.jpg`
+访问路径为：应用 → 已有 Clash TUN → 学校网段规则 → `NJU-VPN` → 本机 SOCKS5 → 学校网关 → 校内目标。
 
-  登录时会将图片保存至 `graph_code.jpg` 文件，请查看并手动输入验证码。
+要在 SSH、浏览器、远程桌面中直接输入校内 IP，现有 Clash TUN 必须已接管这些流量；只有系统 HTTP 代理并不能自动接管所有应用。程序不会替你开启、关闭或修改 TUN。
 
-  *详情见此[链接](https://github.com/Mythologyli/zju-connect/issues/65#issuecomment-2650185322)*
+### CFW 0.20.39：读取生成文件的 JavaScript Mixin
 
-##### 使用 aTrust 协议
+1. 完成学校登录，确认解压目录中生成了 `clash-nju.generated.yaml`。
+2. 打开 `CFW-Mixin-NJU.js`，把 `const file` 改成实际生成文件的绝对路径，例如 `C:/Tools/NJU-Connect/clash-nju.generated.yaml`。
+3. 在 CFW 的 Mixin 编辑器中使用 JavaScript，粘贴脚本并保存，手动重新载入当前配置。
+4. 如果已有 Mixin，先保留原逻辑再合并；不要覆盖其中已有的 TUN、DNS 或其他配置。`myRules` 数组默认为空，可填自己的规则。
 
-+ 如果你是来自 ZJU 的用户：
+脚本只增补 `NJU-VPN` 节点、前置学校规则并移除旧的学校 IP 规则，保留原订阅节点、其他规则及所有其他配置字段。重复加载不会重复追加。
 
-  其他步骤与 EasyConnect 相同，运行参数请设置为：
+**规则文件更新不等于内核自动加载。每次学校网段文件更新后，需手动重新载入 CFW 当前配置。** 缺少文件或文件尚无网段时会通知，保留原配置。
 
-  `./zju-connect -protocol atrust -username <上网账户> -password <密码> -client-data-file client_data.json`
+运行文件可以放到其他目录，但需同步修改 Mixin 的 `const file`。使用脚本时规则文件写入脚本所在目录；直接运行 EXE 时默认写入当前工作目录，或用 `--clash-rules-file` 指定。
 
-  之后按照提示操作。如果你不希望保存登录状态，可以不填 `-client-data-file` 参数。
+### 通用 YAML 合并
 
-+ 如果你是非 ZJU 的用户：
+登录后将 `clash-nju.generated.yaml` 中的代理条目和规则加入现有配置的对应列表。不要把整份订阅替换成片段。学校规则放在原有局域网 DIRECT、私网规则与 MATCH 前面，之后手动重新加载。
 
-  其他步骤与 ZJU 用户相同，请根据情况指定登录域及协议。
+生成文件包含账号下发的所有 TCP IPv4 资源，可能同时包含校内地址和学校授权的图书馆数据库地址。端口与协议限制仍由 VPN 客户端依据原始资源清单检查。
 
-  **如何确定登录域及协议？**
+## 常用参数
 
-  1. 运行 `./zju-connect -protocol atrust -server <服务器地址> -port <服务器端口> -auth-info`。
-  2. 该命令会获取可用的认证方式，例如
-     ```json
-     [{"loginDomain":"Radius","authType":"auth/psw","authName":"上网账号","loginUrl":""},{"loginDomain":"local","authType":"auth/psw","authName":"IDC运维账号","loginUrl":""},{"loginDomain":"radius93482","authType":"auth/psw","authName":"INTL ID","loginUrl":""}]
-     ```
-     包含三个登录方式。方式一的登录域为 `Radius`，认证类型为 `auth/psw`。如果要使用方式一登录，则需要在运行参数中添加 `-login-domain Radius -auth-type "auth/psw"`。
-  3. 目前支持的认证类型包括 `auth/psw`（密码验证）、`auth/cas`（CAS 验证）、`auth/smsCheckCode`（短信验证码验证）。
+```powershell
+# 只查询公开认证方式，不登录
+.\Start-NJU.ps1 -AuthInfo
 
-#### 作为服务运行
+# 修改本程序独立监听端口；Clash 节点需使用同一 SOCKS 端口
+.\Start-NJU.ps1 -SocksPort 12080 -HttpPort 12081
 
-[链接](docs/service.md)
+# 可选保存会话；默认不保存，也不自动绑定授信终端
+.\Start-NJU.ps1 -RememberSession
 
-#### Docker 运行
+# 指定本程序出口网卡，仅影响自己的连接，不改网卡或路由
+.\Start-NJU.ps1 -BindInterface 'Wi-Fi'
 
-[链接](docs/docker.md)
+# 可选 SSH banner 检查，不提交 SSH 用户凭据
+.\Start-NJU.ps1 -CheckTarget '10.0.0.42:22'
 
-### 警告
+# 可选单机转发；通用 SOCKS5 仍可同时访问其他地址
+.\Start-NJU.ps1 -Target '10.0.0.42:22' -SshPort 2222
+```
 
-1. 当使用其他开启了 TUN 模式的代理工具，同时配合 zju-connect 作为下游代理时，请注意务必提供正确的分流规则，参考[此 issue](https://github.com/Mythologyli/zju-connect/issues/57)
+直接运行 EXE 也支持原有参数及环境变量：
 
-### TUN 模式注意事项
+```powershell
+.\dist\nju-connect.exe --username '你的学号' --password '你的密码'
+.\dist\nju-connect.exe --help
+```
 
-1. 需要管理员权限运行
+命令行密码可能出现在进程参数或命令历史中，日常建议用隐藏输入的启动脚本；也支持 `ZJU_CONNECT_PASSWORD` 环境变量。
 
-2. Windows 系统需要前往 [Wintun 官网](https://www.wintun.net)下载 `wintun.dll` 并放置于可执行文件同目录下
+新增选项包括 `--profile nju`、`--clash-rules-file <路径>` 和 `--check-target <IP:端口>`。发布 EXE 已锁定 `nju` 预设，无需手动设置。
 
-3. EasyConnect 协议下的推荐配置为 `-tun-mode -add-route -dns-hijack`
+### 浏览器 OAuth
 
-4. aTrust 协议下的推荐配置为 `-tun-mode -add-route -dns-hijack -fake-ip`。在使用 aTrust 协议时，如果不使用 DNS劫持/Fake IP，直接通过 TUN 网卡的涉及域名的 TCP 流量可能会出错
+```powershell
+.\Start-NJU.ps1 -LoginMode Browser
+```
 
-### 参数说明
+沿用上游交互式 OAuth：终端给出学校登录 URL，用户完成浏览器登录，并从 Network 中获取 `/passport/v1/auth/httpsOauth2?code=...` 回调 URL 粘贴到终端。回调是敏感凭据，不要公开。本发布版已验证 LDAP 登录后的数据通路，南大 OAuth 全流程仍未验证；优先使用 LDAP。
 
-#### 通用参数
+## 限制与排障
 
-+ `protocol`: 登录协议，支持 `easyconnect`/`atrust`，默认为 `easyconnect`
+- 当前面向 IPv4 TCP；不支持此模式下的 UDP、ICMP 或 IPv6，不能用 `ping` 判断 SSH 是否可达。
+- 若 Clash 连接页面仍显示梯子节点，先检查 Mixin 已启用、生成文件路径正确，并重新载入当前配置。
+- 若流量根本未进入 Clash，需由用户检查已有 TUN 的排除规则；程序不会修改这些设置。
+- 网段与家庭局域网重叠时，需要更具体的本地 DIRECT 规则；完全相同的 IP 不能仅靠 IP 规则区分两个网络。
+- 若提示端口占用，修改本程序端口，不会自动停止占用端口的程序。
+- 若提示多个登录域，使用 `-AuthInfo` 查看，再用 `-LoginDomain` 明确选择。
+- 账号资源清单未包含某个 IP / 端口时会拒绝连接，不会静默回落到本机其他出口。
+- CFW/Mixin 的配置保存与重载由用户执行；程序不调用 Clash 控制 API 改配置。
 
-+ `server`: VPN 服务端地址，默认为 `rvpn.zju.edu.cn`/`vpn.zju.edu.cn`
+## 从源码构建
 
-+ `port`: VPN 服务端端口，默认为 `443`
+`go.mod` 声明 Go 最低版本。本次 Windows 发布包使用 Go 1.27.1、`CGO_ENABLED=0` 构建。
 
-+ `username`: 网络账户。例如：学号
+```powershell
+.\Build-NJU.ps1 -Test
+```
 
-+ `password`: 网络账户密码（敏感信息建议使用环境变量 `ZJU_CONNECT_PASSWORD` 给定）
+产物为 `dist/nju-connect.exe`。构建脚本将模块与编译缓存放入 `work/`，仅临时设置本进程 Go 编译变量并恢复。支持 Git checkout 和无 `.git` 的源码压缩包。
 
-+ `graph-code-file`: 图形验证码文件路径。默认为空。在 aTrust 模式下，留空时使用浏览器完成验证码，设置路径则登录时会将图形验证码保存至该文件，由用户手动输入 JSON
+可指定版本和另一个输出路径，避免覆盖正在运行的 EXE：
 
-+ `totp-secret`: TOTP 密钥，可用于自动完成 TOTP 验证。如服务端无需 TOTP 验证或希望手动输入验证码，可不填（敏感信息建议使用环境变量 `ZJU_CONNECT_TOTP_SECRET` 给定）
+```powershell
+.\Build-NJU.ps1 -OutputPath work/release-build/nju-connect.exe -Version v0.1.0-nju.1
+```
 
-+ `disable-remote-dns`: 禁用远端 DNS 改用本地 DNS，一般不需要加此参数
+可选 Node.js Mixin 测试（运行发布包不需要 Node.js）：
 
-+ `disable-server-config`: 禁用服务端配置，一般不需要加此参数
+```powershell
+node tests/cfw_mixin.test.cjs
+node tests/cfw_mixin_file.test.cjs
+```
 
-+ `socks-bind`: SOCKS5 代理监听地址，默认为 `:1080`
+## 本地打包与 GitHub
 
-+ `socks-user`: SOCKS5 代理用户名，不填则不需要认证
+打包脚本仅使用 Python 标准库，生成干净源码包、Windows 运行包和 SHA256 校验清单：
 
-+ `socks-passwd`: SOCKS5 代理密码，不填则不需要认证
+```powershell
+python scripts/package_release.py --version v0.1.0-nju.1 --binary work/release-build/nju-connect.exe
+```
 
-+ `http-bind`: HTTP 代理监听地址，默认为 `:1081`。为 `""` 时不启用 HTTP 代理
+输出到 `releases/`。打包使用源码白名单，不收集 `.git`、编译工具链、缓存、账号会话、生成网段、日志、HAR、抓包或本机 Clash 配置。
 
-+ `shadowsocks-url`: Shadowsocks 服务端 URL。例如：`ss://aes-128-gcm:password@server:port`。格式[参考此处](https://github.com/shadowsocks/go-shadowsocks2)
+本仓库为 [Mythologyli/zju-connect](https://github.com/Mythologyli/zju-connect) 的 Fork。源码通过 Git 保留上游历史，Windows 运行 ZIP、对应源码 ZIP 和 SHA256 校验清单作为本仓库 Release 附件发布。两者保留许可证和上游归属。
 
-+ `dial-direct-proxy`: 当 URL 未命中规则，切换到直连时使用代理，常用于与其他代理工具配合的场景，目前仅支持 http 代理。例如：`http://127.0.0.1:7890"`，为 `""` 时不启用
+开发 checkout 中建议将本仓库配置为 `origin`，上游配置为 `upstream`。构建产物、缓存和运行时敏感文件不进入 Git 历史。
 
-+ `tcp-tunnel-mode`: TCP 隧道模式，默认为 `false`。启用后仅可通过 TCP 隧道代理 TCP 流量。由于只有 aTrust 支持 TCP 隧道，此模式在 EasyConnect 下无效。启用后会禁用 TUN 模式
+GitHub Actions 仅测试和构建 Windows x64 包，并上传构建产物；不会自动发布 Release、推送镜像或要求学校凭据。原上游工作流保留在 `docs/upstream-workflows/` 供参考，不会自动运行。
 
-+ `tun-mode`: TUN 模式（实验性）。请阅读 TUN 模式注意事项
+## 验证情况
 
-+ `add-route`: 启用 TUN 模式时根据服务端下发配置添加路由
+已通过 Go 全量测试及 JavaScript Mixin 测试，覆盖网络模式限制、动态登录域、TCP-only 启动、多网段导出、旧规则更新和现有配置保留。已实测在现有 CFW TUN 下，校内 TCP 连接命中 `NJU-VPN` 并读取到 SSH banner；这不代表已测试所有校内资源，也不涉及 SSH 用户认证。
 
-+ `dns-ttl`: DNS 缓存时间，默认为 `3600` 秒
+## 许可证与来源
 
-+ `disable-keep-alive`: 禁用定时保活，一般不需要加此参数
-
-+ `keep-alive-url`: 使用 HTTP 保活，适用于服务端不下发 DNS 的情况。填写要访问的 URL，例如 `https://www.cnki.net/favicon.ico` 。默认为空，此时使用服务端下发的 DNS 保活
-
-+ `remote-dns-server`: 远端 DNS 服务器地址，默认为 `auto`。设置为 auto 时使用从服务端获取的 DNS 服务器，如果未能获取则禁用远端 DNS
-
-+ `secondary-dns-server`: 当远端 DNS 无法解析时使用的备用服务器。默认值 `auto` 优先采用 VPN 策略下发的第二 DNS，否则回退到 `114.114.114.114`。留空则使用系统默认 DNS，但在开启 `dns-hijack` 时必须设置
-
-+ `dns-server-bind`: DNS 服务器监听地址，默认为空即禁用。例如，设置为 `127.0.0.1:53`，则可向 `127.0.0.1:53` 发起 DNS 请求
-
-+ `local-dns-server`: 指定用于解析 VPN 服务器域名的本地 DNS，格式为 IP 或 IP:port；留空时使用系统 DNS，可路由的 DNS 地址在探测成功后绑定到底层网卡，本地 DNS stub 保持 loopback 路由
-
-+ `dns-hijack`: 启用 TUN 模式时劫持 DNS 请求，建议在启用 TUN 模式时添加此参数
-
-+ `fake-ip`: 启用 Fake IP 功能，与 dns-hijack 配合使用，建议在使用 aTrust 协议并启用 TUN 模式时添加此参数。此参数在 EasyConnect 协议下无效
-
-+ `debug-dump`: 是否开启调试，一般不需要加此参数
-
-+ `debug-pcap-file`: 根据 VPN 底层 TCP 连接实际收发的数据重建 PCAP 文件，仅用于调试；捕获队列满时会阻塞网络读写，不包含内核握手和重传，TLS 内容仍为密文
-
-+ `debug-tls-log-file`: 将 TLS 会话密钥导出为 NSS key log 格式，可配合 `debug-pcap-file` 在 Wireshark 中解密 TLS 流量。该文件包含会话密钥，仅用于调试并应妥善保管
-
-+ `bind-interface`: 手动指定 VPN 底层连接使用的网卡接口，支持 EasyConnect 和 aTrust。非空时优先使用该接口，不再自动探测
-
-+ `auto-detect-interface`: 自动探测并绑定 VPN 底层网卡，默认为 `false`。设为 `true` 时启用自动探测；未启用且未指定 `bind-interface` 时，底层连接使用系统路由。**若同时使用其他启用了 Fake IP 的 VPN，此功能可能无法正常工作**
-
-+ `tcp-port-forwarding`: TCP 端口转发，格式为 `本地地址-远程地址,本地地址-远程地址,...`，例如 `127.0.0.1:9898-10.10.98.98:80,0.0.0.0:9899-10.10.98.98:80`。多个转发用 `,` 分隔
-
-+ `udp-port-forwarding`: UDP 端口转发，格式为 `本地地址-远程地址,本地地址-远程地址,...`，例如 `127.0.0.1:53-10.10.0.21:53`。多个转发用 `,` 分隔
-
-+ `custom-dns`: 指定自定义 DNS 解析结果，格式为 `域名:IP,域名:IP,...`，例如 `www.cc98.org:10.10.98.98,appservice.zju.edu.cn:10.203.8.198`。多个解析用 `,` 分隔
-
-+ `proxy-all`: 是否代理所有流量，一般不需要加此参数
-
-+ `config`: 指定配置文件，内容参考 `config.toml.example`
-
-配置按“内置默认值 < TOML 配置文件 < 环境变量 < 命令行参数”的优先级合并。只有显式提供的命令行参数会覆盖其他来源，例如 `-tun-mode=false` 可以关闭配置文件或环境变量中启用的选项。
-
-配置项均可使用带 `ZJU_CONNECT_` 前缀的大写环境变量设置，例如 `server_address` 对应 `ZJU_CONNECT_SERVER_ADDRESS`，`tun_mode` 对应 `ZJU_CONNECT_TUN_MODE`。集合项使用与命令行参数相同的语法和名称，例如 `ZJU_CONNECT_TCP_PORT_FORWARDING=127.0.0.1:9898-10.10.98.98:80`、`ZJU_CONNECT_CUSTOM_DNS=www.cc98.org:10.10.98.98` 和 `ZJU_CONNECT_CUSTOM_PROXY_DOMAIN=nature.com,science.org`。
-
-旧名称 `disable_zju_dns`、`zju_dns_server` 及其命令行参数和环境变量仍然兼容，但已弃用；请改用 `disable_remote_dns` 和 `remote_dns_server`。
-
-#### EasyConnect 相关参数
-
-+ `cert-file`: p12 证书文件路径，如果服务器要求证书验证，需要配置此参数
-
-+ `cert-password`: 证书密码 (敏感信息建议使用环境变量 `ZJU_CONNECT_CERT_PASSWORD` 给定)
-
-+ `skip-domain-resource`: 不使用服务端下发的域名资源分流，一般不需要加此参数
-
-+ `disable-multi-line`: 禁用自动根据延时选择线路。加此参数后，使用 `server` 参数指定的线路
-
-+ `disable-zju-config`: 禁用 ZJU 相关配置，非 ZJU 用户可能需要添加此参数
-
-+ `custom-proxy-domain`: 指定自定义域名使用 RVPN 代理，格式为 `域名,域名,...`，例如 `nature.com,science.org`。多个域名用 `,` 分隔
-
-+ `twf-id`: twfID 登录，调试用途，一般不需要加此参数
-
-#### aTrust 相关参数
-
-+ `auth-type`: aTrust 登录验证类型，支持 `auth/psw`（密码验证）、`auth/cas`（CAS 验证）、`auth/smsCheckCode`（短信验证码验证），默认为自动检测
-
-+ `login-domain`: 登录域，默认为 `Radius`
-
-+ `client-data-file`: 客户端数据文件路径，可用于保存登录状态，避免重复验证
-
-+ `cas-ticket`: CAS 验证票据，默认为空，此时进入交互式验证
-
-+ `phone`: 短信验证码登录时使用的手机号
-
-+ `update-best-nodes-interval`: 自动选择最优线路的更新间隔，单位为秒，默认为 `300` 秒。设置为 `0` 则禁用自动选择最优线路
-
-+ `session-refresh-interval`: aTrust SID 刷新间隔，单位为秒，默认为 `1800`。设置为 `0` 则禁用定时刷新。
-
-+ `auth-info`: 仅获取 aTrust 验证信息而不登录，一般不需要加此参数。可用于查看服务端支持的验证方式
-
-+ `trust-device`: 设置当前设备为授信终端（需要已登录的 `-client-data-file`），不启用隧道
-
-+ `untrust-device`: 从授信终端中移除当前设备（需要已登录的 `-client-data-file`），不启用隧道
-
-+ `sid`: aTrust SID，调试用途，一般不需要加此参数
-
-+ `device-id`: aTrust 设备 ID，调试用途，一般不需要加此参数
-
-+ `sign-key`: aTrust 签名密钥，调试用途，一般不需要加此参数
-
-+ `resource-file`: aTrust 资源文件，调试用途，一般不需要加此参数
-
-### 计划表
-
-#### 已完成
-
-- [x] 代理 TCP 流量
-- [x] 代理 UDP 流量
-- [x] SOCKS5 代理服务
-- [x] HTTP 代理服务
-- [x] Shadowsocks 代理服务
-- [x] 远端 DNS 解析
-- [x] ZJU 规则添加
-- [x] 支持 IPv6 直连
-- [x] DNS 缓存加速
-- [x] 自动选择线路
-- [x] TCP 端口转发功能
-- [x] UDP 端口转发功能
-- [x] 通过配置文件启动
-- [x] 定时保活
-- [x] TUN 模式
-- [x] 自动劫持 DNS
-- [x] 短信验证
-- [x] TOTP 验证
-- [x] 证书验证
-- [x] aTrust 协议支持
-- [x] Fake IP
-
-#### To Do
-
-### 贡献者
-
-<a href="https://github.com/mythologyli/zju-connect/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=mythologyli/zju-connect" />
-</a>
-
-### 感谢
-
-+ [EasierConnect](https://github.com/lyc8503/EasierConnect)
-
-+ [socks2http](https://github.com/zenhack/socks2http)
-
-+ [![image](docs/yxvm.png)](https://yxvm.com/)
-
-  [NodeSupport](https://github.com/NodeSeekDev/NodeSupport) 赞助了本项目
-
-### Star History
-
-[![Star History Chart](https://api.star-history.com/image?repos=mythologyli/zju-connect&type=date&legend=top-left)](https://www.star-history.com/?repos=mythologyli%2Fzju-connect&type=date&legend=bottom-right)
+保留上游 [AGPL-3.0 许可证](LICENSE) 及已有第三方许可证。基线为 `Mythologyli/zju-connect` 提交 `923672d`，来源和修改说明见 [NOTICE.md](NOTICE.md)。本项目不是学校或深信服官方客户端，不包含官方 aTrust 二进制、SDK 或账号凭据。

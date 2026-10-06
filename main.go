@@ -186,6 +186,7 @@ func main() {
 
 		log.Printf("VPN protocol: %s", conf.Protocol)
 		clientData, err = vpnClient.(*atrustclient.Client).Setup(atrustclient.SetupOptions{
+			TCPOnly:                  conf.TCPTunnelMode,
 			ServerAddress:            conf.ServerAddress,
 			ServerPort:               conf.ServerPort,
 			LoginMethod:              loginMethod,
@@ -240,6 +241,14 @@ func main() {
 	dnsResource, err := vpnClient.DNSResource()
 	if err != nil && !conf.DisableServerConfig {
 		log.Println("No DNS resource")
+	}
+	if conf.ClashRulesFile != "" {
+		count, exportErr := exportClashIPRules(conf.ClashRulesFile, conf.SocksBind, ipResources)
+		if exportErr != nil {
+			log.Printf("Export school Clash rules failed: %v", exportErr)
+		} else {
+			log.Printf("Exported %d school TCP IPv4 ranges to %s; merge the fragment into your existing Clash config (not applied automatically)", count, conf.ClashRulesFile)
+		}
 	}
 
 	if conf.Protocol == "easyconnect" {
@@ -378,6 +387,16 @@ func main() {
 	go vpnStack.Run()
 
 	vpnDialer := dial.NewDialer(vpnStack, vpnResolver, ipResources, conf.ProxyAll, conf.DialDirectProxy)
+	if conf.CheckTarget != "" {
+		checkCtx, checkCancel := context.WithTimeout(context.Background(), 12*time.Second)
+		banner, checkErr := checkSSHBanner(checkCtx, vpnDialer.Dial, conf.CheckTarget)
+		checkCancel()
+		if checkErr != nil {
+			log.Printf("SSH check %s failed: %v (local proxies will still start)", conf.CheckTarget, checkErr)
+		} else {
+			log.Printf("SSH check %s succeeded: %s", conf.CheckTarget, banner)
+		}
+	}
 
 	if conf.DNSServerBind != "" {
 		go service.ServeDNS(conf.DNSServerBind, localResolver)

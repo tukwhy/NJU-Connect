@@ -1,6 +1,9 @@
 package configs
 
 type Config struct {
+	Profile        string `koanf:"profile"`
+	CheckTarget    string `koanf:"check_target"`
+	ClashRulesFile string `koanf:"clash_rules_file"`
 	// Common fields
 	Protocol            string                 `koanf:"protocol"`
 	ServerAddress       string                 `koanf:"server_address"`

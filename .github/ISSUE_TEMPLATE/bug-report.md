@@ -1,53 +1,21 @@
 ---
 name: Bug Report
-about: 报告 zju-connect 中存在的错误
+about: 报告 NJU-Connect 的问题
 title: ''
 labels: bug
-assignees: Mythologyli
-
+assignees: ''
 ---
 
-**提交之前**
+**版本 / 操作系统 / 启动方式**
 
-在提交报告之前，请确保：
-+ 你正在使用 [Release](https://github.com/Mythologyli/zju-connect/releases) 中的最新版本
-+ 如果你可以访问 CC98，请确保你已经阅读过以下说明：
-    + [使用 ZJU Connect 代替 EasyConnect 提升你的 RVPN 体验](https://www.cc98.org/topic/5521873)
-    + [端口转发、定时保活、自动选线、密码保存](https://www.cc98.org/topic/5570875)
-+ 如果你是非 ZJU 用户，请确保你使用如下启动参数时仍然有误：`zju-connect -server <服务器地址> -port <服务器端口> -username xxx -password xxx -disable-keep-alive -disable-zju-config -skip-domain-resource -zju-dns-server auto`
-+ 你已搜索过现有的 [Issues](https://github.com/Mythologyli/zju-connect/issues?q=is%3Aissue) 并且未发现重复
+**预期行为与实际行为**
 
-**确认无误后，请删除下方横线及以上内容。之后，请修改下方的模版并提交报告**
+**重现步骤**
 
----
+**相关日志（请先脱敏）**
 
-**软件版本**
-v0.4.0
+不要提供密码、短信验证码、Cookie、OAuth 回调、会话文件、完整 HAR 或含凭据的订阅 URL。
 
-**使用环境**
-Windows 10 x64/Windows 11/Ubuntu 22.04/OpenWrt 22.03/Docker/...
+**如涉及 Clash 分流**
 
-**服务端地址**
-rvpn.zju.edu.cn:443
-
-**服务端版本** (例如 `M7.6.8R2`。查看日志中的 `VPN server version`)
-
-
-**故障描述** (建议结合图片说明)
-
-
-**重现方法**
-
-
-**预期行为**
-
-
-**日志**
-```
-在此粘贴
-```
-
-**配置文件或启动参数** (请去除敏感信息)
-```
-在此粘贴
-```
+请说明 Mixin 是否重新加载，以及目标连接命中的规则和出口。无需上传完整订阅或本机代理配置。

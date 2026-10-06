@@ -26,6 +26,7 @@ const envPrefix = "ZJU_CONNECT_"
 var (
 	zjuConnectVersion = "dev"
 	CommitID          string
+	defaultProfile    string
 	domainPattern     = regexp.MustCompile(`^[a-zA-Z\d-]+(\.[a-zA-Z\d-]+)*\.[a-zA-Z]{2,}$`)
 )
 
@@ -81,6 +82,9 @@ func zjuConnectVersionString() string {
 
 func newFlagSet(defaults configs.Config) *pflag.FlagSet {
 	flags := pflag.NewFlagSet("zju-connect", pflag.ContinueOnError)
+	flags.String("profile", defaultProfile, "Built-in profile (nju)")
+	flags.String("check-target", defaults.CheckTarget, "Check an SSH banner through the VPN after login (host:port; empty disables)")
+	flags.String("clash-rules-file", defaults.ClashRulesFile, "Export a mergeable Clash config fragment for all school TCP IPv4 ranges after login")
 	flags.String("protocol", defaults.Protocol, "Protocol (easyconnect, atrust)")
 	flags.String("server", defaults.ServerAddress, "EasyConnect/aTrust server address")
 	flags.Int("port", defaults.ServerPort, "EasyConnect/aTrust port address")
@@ -172,6 +176,12 @@ func loadStartupOptions(args []string, environ func() []string) (startupOptions,
 	}
 
 	envValues := environ()
+	profile, _ := flags.GetString("profile")
+	if !flags.Lookup("profile").Changed {
+		if value, ok := lookupEnvironment(envValues, envPrefix+"PROFILE"); ok {
+			profile = value
+		}
+	}
 	if !flags.Lookup("config").Changed {
 		if path, ok := lookupEnvironment(envValues, envPrefix+"CONFIG"); ok {
 			configFile = path
@@ -198,6 +208,32 @@ func loadStartupOptions(args []string, environ func() []string) (startupOptions,
 		if err := rejectUnknownKeys(k, allowedKeys); err != nil {
 			return startupOptions{}, flags, fmt.Errorf("parse config %q: %w", configFile, err)
 		}
+	}
+	if !flags.Lookup("profile").Changed {
+		if _, ok := lookupEnvironment(envValues, envPrefix+"PROFILE"); !ok && k.String("profile") != "" {
+			profile = k.String("profile")
+		}
+	}
+	if profile != "" {
+		profileDefaults, err := defaultsForProfile(profile)
+		if err != nil {
+			return startupOptions{}, flags, err
+		}
+		// Replace only the defaults layer; file, environment and CLI keep their
+		// normal precedence, followed by the profile's invariant checks.
+		merged := koanf.New(".")
+		if err := merged.Load(structs.Provider(profileDefaults, "koanf"), nil); err != nil {
+			return startupOptions{}, flags, err
+		}
+		if configFile != "" {
+			if err := merged.Load(file.Provider(configFile), toml.Parser()); err != nil {
+				return startupOptions{}, flags, err
+			}
+			if err := normalizeConfigAliases(merged); err != nil {
+				return startupOptions{}, flags, err
+			}
+		}
+		k = merged
 	}
 
 	envProvider := env.Provider(".", env.Opt{
@@ -244,6 +280,9 @@ func loadStartupOptions(args []string, environ func() []string) (startupOptions,
 		return startupOptions{}, flags, fmt.Errorf("decode merged configuration: %w", err)
 	}
 	zjuServerWorkaround(&cfg)
+	if err := validateProfile(cfg); err != nil {
+		return startupOptions{}, flags, err
+	}
 	if err := validateConfig(cfg); err != nil {
 		return startupOptions{}, flags, err
 	}
@@ -600,6 +639,19 @@ func initialize(args []string) int {
 		fmt.Fprintln(os.Stderr, "\nUsage:")
 		flags.PrintDefaults()
 		return 1
+	}
+	if conf.Profile == "nju" && conf.LoginDomain == "auto" {
+		info, err := atrust.GetAuthInfoList(conf.ServerAddress, conf.ServerPort, conf.BindInterface, conf.AutoDetectInterface, conf.LocalDNSServer, conf.DebugTLSLogFile)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Discover NJU authentication:", err)
+			return 1
+		}
+		conf.LoginDomain, err = selectLoginDomain(info, conf.AuthType)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 1
+		}
+		fmt.Printf("NJU login: %s / %s\n", conf.AuthType, conf.LoginDomain)
 	}
 	return -1
 }

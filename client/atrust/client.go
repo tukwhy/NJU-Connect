@@ -38,6 +38,8 @@ type ClientOptions struct {
 }
 
 type SetupOptions struct {
+	// TCPOnly skips virtual IP allocation and all L3 tunnel initialization.
+	TCPOnly                  bool
 	ServerAddress            string
 	ServerPort               int
 	LoginMethod              auth.LoginMethod
@@ -421,19 +423,22 @@ func (c *Client) Setup(options SetupOptions) ([]byte, error) {
 
 	c.BestNodes = getBestNodes(c.NodeGroups, c.underlayDialer.DialContext, c.tlsKeyLogWriter)
 
-	err = c.getIP()
-	if err != nil {
-		return nil, err
+	if !options.TCPOnly {
+		err = c.getIP()
+		if err != nil {
+			return nil, err
+		}
+		c.underlayDialer.ExcludeIP(c.ip)
+		l3Tunnel, err := NewL3Tunnel(c)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create L3 tunnel: %v", err)
+		}
+		c.l3TunnelMu.Lock()
+		c.l3Tunnel = l3Tunnel
+		c.l3TunnelMu.Unlock()
+	} else {
+		log.Println("TCP-only mode: skip virtual IP allocation and L3 tunnel")
 	}
-	c.underlayDialer.ExcludeIP(c.ip)
-
-	l3Tunnel, err := NewL3Tunnel(c)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create L3 tunnel: %v", err)
-	}
-	c.l3TunnelMu.Lock()
-	c.l3Tunnel = l3Tunnel
-	c.l3TunnelMu.Unlock()
 	if options.SaveClientData != nil {
 		if err := options.SaveClientData(authData); err != nil {
 			return nil, fmt.Errorf("failed to save client data: %w", err)

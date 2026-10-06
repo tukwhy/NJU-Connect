@@ -23,3 +23,37 @@ go.work
 
 # Config file
 config.toml
+
+# Local build toolchain, caches and authentication state
+work/
+dist/
+nju-client-data.json
+clash-nju.generated.yaml
+clash-nju.generated.cfw-mixin.js
+
+# Release archives and local credentials / diagnostics
+releases/
+*.zip
+*.har
+*.pcap
+*.log
+*.keylog
+.env
+.env.*
+*.local.js
+config.local.toml
+__pycache__/
+
+# Alternative session / diagnostic names and local IDE state
+client_data*.json
+client-data*.json
+*session*.json
+*.pem
+*.pfx
+*.p12
+*.key
+.ssh/
+.vscode/
+node_modules/
+build_assets/
+bin/

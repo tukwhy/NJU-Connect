@@ -1,0 +1,18 @@
+# No username or password is stored in this file.
+profile = "nju"
+server_address = "vpn.nju.edu.cn"
+server_port = 443
+auth_type = "auth/psw"
+login_domain = "auto"
+socks_bind = "127.0.0.1:11080"
+http_bind = "127.0.0.1:11081"
+tcp_tunnel_mode = true
+tun_mode = false
+add_route = false
+dns_hijack = false
+fake_ip = false
+disable_remote_dns = true
+proxy_all = true
+check_target = ""
+port_forwarding = []
+clash_rules_file = "clash-nju.generated.yaml"

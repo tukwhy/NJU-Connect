@@ -1,0 +1,16 @@
+# Merge these entries into your existing config. This is not a full config.
+# The complete fragment is generated from ALL granted TCP IPv4 resources on login.
+# Use clash-nju.generated.yaml after login; it contains the complete rules.
+# Rules must precede LAN DIRECT / private-IP rule sets and MATCH.
+# Process DIRECT covers VPN control traffic and dynamically selected nodes.
+proxies:
+  - name: NJU-VPN
+    type: socks5
+    server: 127.0.0.1
+    port: 11080
+    udp: false
+
+rules:
+  - PROCESS-NAME,nju-connect.exe,DIRECT
+  - DOMAIN,vpn.nju.edu.cn,DIRECT
+  # Merge all generated IP-CIDR rules here, before existing LAN DIRECT / MATCH.
